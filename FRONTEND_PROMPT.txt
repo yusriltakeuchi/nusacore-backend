@@ -1,0 +1,894 @@
+================================================================
+NUSACORE HRIS — FRONTEND GENERATION PROMPT (Next.js)
+PT Digital Nusantara
+================================================================
+
+Kamu adalah Senior Frontend Engineer.
+
+Buatkan project frontend HRIS (Human Resource Information System)
+untuk perusahaan PT Digital Nusantara menggunakan:
+
+TECH STACK:
+- Next.js 14 (App Router)
+- TypeScript
+- Tailwind CSS
+- shadcn/ui (komponen UI)
+- Axios (HTTP client)
+- React Hook Form + Zod (form & validasi)
+- TanStack Query / React Query (server state)
+- Zustand (client state - auth/user)
+- NextAuth.js atau custom JWT auth
+- recharts (dashboard charts)
+- xlsx (export helper di sisi client jika perlu)
+- react-dropzone (upload file)
+- react-hot-toast atau sonner (notifikasi)
+- date-fns (formatting tanggal)
+- lucide-react (icons)
+
+================================================================
+BACKEND API BASE URL
+================================================================
+
+Base URL: http://localhost:3000
+API Prefix: /api
+Swagger Docs: http://localhost:3000/api-docs
+
+================================================================
+STANDARD RESPONSE FORMAT
+================================================================
+
+SUCCESS:
+{
+  "success": true,
+  "message": "Success message",
+  "data": { ... } atau [ ... ],
+  "meta": {
+    "currentPage": 1,
+    "limit": 10,
+    "totalData": 100,
+    "totalPages": 10,
+    "hasNextPage": true,
+    "hasPrevPage": false,
+    "nextPage": 2,
+    "prevPage": null
+  }
+}
+
+ERROR:
+{
+  "success": false,
+  "message": "Error message",
+  "errors": [
+    { "field": "email", "message": "Email is required.", "value": "" }
+  ]
+}
+
+================================================================
+AUTHENTICATION
+================================================================
+
+Semua endpoint PROTECTED memerlukan header:
+  Authorization: Bearer <access_token>
+
+Token disimpan di:
+- access_token → localStorage atau memory (httpOnly tidak bisa JS)
+- refresh_token → dikirim via httpOnly Cookie secara otomatis oleh server
+
+================================================================
+API ENDPOINTS — FULL DOCUMENTATION
+================================================================
+
+────────────────────────────────────────────────────────────────
+1. AUTH — POST /api/auth/register
+────────────────────────────────────────────────────────────────
+Headers:
+  Content-Type: application/json
+
+Request Body:
+{
+  "username": "john.doe",          // required, 3-50 chars, alphanum._-
+  "email": "john@example.com",     // required, valid email
+  "password": "MyPass@123",        // required, min 8 chars, harus ada uppercase+lowercase+angka
+  "role": "Employee",              // optional, default: Employee | Admin
+  "employee_id": 1                 // optional, null ok
+}
+
+Response 201:
+{
+  "success": true,
+  "message": "Registration successful. Welcome to NusaCore HRIS!",
+  "data": {
+    "userId": 5,
+    "username": "john.doe",
+    "email": "john@example.com",
+    "role": "Employee"
+  },
+  "meta": null
+}
+
+Response 409: Email/username sudah terdaftar
+Response 422: Validation error
+
+────────────────────────────────────────────────────────────────
+2. AUTH — POST /api/auth/login
+────────────────────────────────────────────────────────────────
+Headers:
+  Content-Type: application/json
+
+Request Body:
+{
+  "identifier": "admin@nusacore.com",  // required, email ATAU username
+  "password": "Admin@1234",             // required
+  "recaptcha_token": "03AGdBq25..."     // required, dari Google reCAPTCHA v2
+}
+
+Response 200:
+{
+  "success": true,
+  "message": "Login successful.",
+  "data": {
+    "user": {
+      "id": 1,
+      "username": "superadmin",
+      "email": "admin@nusacore.com",
+      "role": "Admin"
+    },
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "token_type": "Bearer"
+  },
+  "meta": null
+}
+
+Catatan:
+- Server juga set httpOnly cookie: refresh_token
+- access_token valid 15 menit
+- refresh_token valid 7 hari
+- Setelah 5 gagal login: locked 15 menit
+- Implementasi reCAPTCHA v2 di frontend (site_key dari env)
+- Jika RECAPTCHA_SECRET_KEY kosong di backend, verifikasi dilewati (dev mode)
+
+Response 401: Kredensial salah
+Response 403: Akun dinonaktifkan
+Response 429: Rate limit / akun terkunci
+
+────────────────────────────────────────────────────────────────
+3. AUTH — POST /api/auth/logout
+────────────────────────────────────────────────────────────────
+Headers:
+  Authorization: Bearer <access_token>
+  Content-Type: application/json
+
+Request Body (opsional):
+{
+  "refresh_token": "..."   // jika tidak pakai cookie
+}
+
+Response 200:
+{
+  "success": true,
+  "message": "Logged out successfully.",
+  "data": null,
+  "meta": null
+}
+
+────────────────────────────────────────────────────────────────
+4. AUTH — POST /api/auth/refresh-token
+────────────────────────────────────────────────────────────────
+Headers:
+  Content-Type: application/json
+
+Request Body (opsional, bisa pakai cookie):
+{
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+
+Response 200:
+{
+  "success": true,
+  "message": "Access token refreshed.",
+  "data": {
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "token_type": "Bearer"
+  },
+  "meta": null
+}
+
+Response 401: Refresh token invalid/expired
+
+────────────────────────────────────────────────────────────────
+5. AUTH — POST /api/auth/forgot-password
+────────────────────────────────────────────────────────────────
+Headers:
+  Content-Type: application/json
+
+Request Body:
+{
+  "email": "user@example.com"   // required
+}
+
+Response 200 (selalu 200 untuk keamanan):
+{
+  "success": true,
+  "message": "If that email is registered, a password reset link has been sent.",
+  "data": null,
+  "meta": null
+}
+
+────────────────────────────────────────────────────────────────
+6. AUTH — POST /api/auth/reset-password
+────────────────────────────────────────────────────────────────
+Headers:
+  Content-Type: application/json
+
+Request Body:
+{
+  "token": "abc123def456...",       // required, dari email link
+  "new_password": "NewPass@456",    // required, min 8 chars
+  "confirm_password": "NewPass@456" // required, harus sama
+}
+
+Response 200:
+{
+  "success": true,
+  "message": "Password has been reset successfully. Please log in.",
+  "data": null,
+  "meta": null
+}
+
+Response 400: Token invalid/expired
+
+────────────────────────────────────────────────────────────────
+7. AUTH — GET /api/auth/me
+────────────────────────────────────────────────────────────────
+Headers:
+  Authorization: Bearer <access_token>
+
+Response 200:
+{
+  "success": true,
+  "message": "Current user info.",
+  "data": {
+    "id": 1,
+    "employee_id": null,
+    "username": "superadmin",
+    "email": "admin@nusacore.com",
+    "role": "Admin",
+    "status": "Active",
+    "last_login": "2024-01-15T08:30:00.000Z",
+    "created_at": "2024-01-01T00:00:00.000Z"
+  },
+  "meta": null
+}
+
+────────────────────────────────────────────────────────────────
+8. EMPLOYEE — GET /api/employees
+────────────────────────────────────────────────────────────────
+AKSES: Admin + Employee (semua bisa lihat)
+
+Headers:
+  Authorization: Bearer <access_token>
+
+Query Parameters:
+  page              integer   default:1        Halaman ke-
+  limit             integer   default:10       Jumlah per halaman (max 100)
+  search            string    optional         Cari nama, email, kode karyawan
+  division          string    optional         Filter divisi (LIKE)
+  employment_status string    optional         Active | Inactive | Resigned
+  gender            string    optional         Male | Female
+  city              string    optional         Filter kota (LIKE)
+  marital_status    string    optional         Single | Married
+  sort_by           string    default:created_at  Kolom sort
+  sort_order        string    default:DESC     ASC | DESC
+
+Contoh:
+GET /api/employees?page=1&limit=10&search=Ahmad&division=Engineering&employment_status=Active&sort_by=full_name&sort_order=ASC
+
+Response 200:
+{
+  "success": true,
+  "message": "Employees retrieved successfully.",
+  "data": [
+    {
+      "id": 1,
+      "employee_code": "EMP-0001",
+      "full_name": "Ahmad Rizki Pratama",
+      "gender": "Male",
+      "birth_date": "1990-05-15T00:00:00.000Z",
+      "email": "ahmad.rizki@ptdigitalnusantara.co.id",
+      "phone_number": "081234567890",
+      "address": "Jl. Sudirman No. 10",
+      "city": "Jakarta",
+      "province": "DKI Jakarta",
+      "postal_code": "10220",
+      "division": "Engineering",
+      "position": "Senior Backend Engineer",
+      "salary": 15000000,
+      "join_date": "2020-01-15T00:00:00.000Z",
+      "employment_status": "Active",
+      "profile_photo": "/uploads/photos/photo_uuid.jpg",
+      "emergency_contact": "Siti Pratama",
+      "emergency_phone": "081234567891",
+      "education": "S1 Teknik Informatika",
+      "marital_status": "Married",
+      "created_at": "2024-01-01T00:00:00.000Z",
+      "updated_at": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "meta": {
+    "currentPage": 1,
+    "limit": 10,
+    "totalData": 10,
+    "totalPages": 1,
+    "hasNextPage": false,
+    "hasPrevPage": false,
+    "nextPage": null,
+    "prevPage": null
+  }
+}
+
+────────────────────────────────────────────────────────────────
+9. EMPLOYEE — GET /api/employees/:id
+────────────────────────────────────────────────────────────────
+AKSES: Admin + Employee
+
+Headers:
+  Authorization: Bearer <access_token>
+
+Path Params:
+  id   integer   required   ID karyawan
+
+Response 200:
+{
+  "success": true,
+  "message": "Employee retrieved successfully.",
+  "data": { /* same as employee object above */ },
+  "meta": null
+}
+
+Response 404: Employee not found
+
+────────────────────────────────────────────────────────────────
+10. EMPLOYEE — POST /api/employees
+────────────────────────────────────────────────────────────────
+AKSES: Admin ONLY
+
+Headers:
+  Authorization: Bearer <access_token>
+  Content-Type: application/json
+
+Request Body:
+{
+  "full_name": "Andi Wijaya",              // required
+  "gender": "Male",                        // required: Male | Female
+  "email": "andi@company.com",             // required, unique
+  "birth_date": "1992-03-20",              // optional, YYYY-MM-DD
+  "phone_number": "081234567890",          // optional
+  "address": "Jl. Merdeka No. 5",         // optional
+  "city": "Bandung",                       // optional
+  "province": "Jawa Barat",               // optional
+  "postal_code": "40115",                  // optional
+  "division": "Engineering",               // optional
+  "position": "Frontend Developer",        // optional
+  "salary": 9000000,                       // optional, number
+  "join_date": "2024-02-01",              // optional, YYYY-MM-DD
+  "employment_status": "Active",           // optional: Active|Inactive|Resigned
+  "emergency_contact": "Budi Wijaya",     // optional
+  "emergency_phone": "081234500000",      // optional
+  "education": "S1 Sistem Informasi",     // optional
+  "marital_status": "Single"              // optional: Single | Married
+}
+
+NOTE: employee_code di-generate otomatis oleh backend (EMP-XXXX)
+
+Response 201:
+{
+  "success": true,
+  "message": "Employee created successfully.",
+  "data": { /* full employee object with auto-generated employee_code */ },
+  "meta": null
+}
+
+Response 409: Email sudah terdaftar
+Response 422: Validation error
+
+────────────────────────────────────────────────────────────────
+11. EMPLOYEE — PUT /api/employees/:id
+────────────────────────────────────────────────────────────────
+AKSES: Admin (semua field) | Employee (field terbatas)
+
+Employee hanya bisa update:
+  phone_number, address, city, province, postal_code,
+  emergency_contact, emergency_phone, marital_status
+
+Headers:
+  Authorization: Bearer <access_token>
+  Content-Type: application/json
+
+Path Params:
+  id   integer   required
+
+Request Body: (semua optional, hanya field yang ingin diupdate)
+{
+  "full_name": "Ahmad Rizki Updated",
+  "division": "Product",
+  "position": "Senior Developer",
+  "salary": 18000000,
+  "employment_status": "Active",
+  "phone_number": "089999999999"
+}
+
+Response 200:
+{
+  "success": true,
+  "message": "Employee updated successfully.",
+  "data": { /* updated employee object */ },
+  "meta": null
+}
+
+────────────────────────────────────────────────────────────────
+12. EMPLOYEE — DELETE /api/employees/:id
+────────────────────────────────────────────────────────────────
+AKSES: Admin ONLY
+
+Headers:
+  Authorization: Bearer <access_token>
+
+Path Params:
+  id   integer   required
+
+Response 200:
+{
+  "success": true,
+  "message": "Employee deleted successfully.",
+  "data": null,
+  "meta": null
+}
+
+────────────────────────────────────────────────────────────────
+13. DASHBOARD — GET /api/dashboard/stats
+────────────────────────────────────────────────────────────────
+AKSES: Admin ONLY
+
+Headers:
+  Authorization: Bearer <access_token>
+
+Response 200:
+{
+  "success": true,
+  "message": "Dashboard statistics retrieved successfully.",
+  "data": {
+    "summary": {
+      "total_employees": 10,
+      "total_active": 8,
+      "total_inactive": 1,
+      "total_resigned": 1,
+      "total_divisions": 5,
+      "total_users": 4
+    },
+    "charts": {
+      "employee_by_division": [
+        { "label": "Engineering", "value": 4 },
+        { "label": "Finance", "value": 2 },
+        { "label": "Human Resource", "value": 1 },
+        { "label": "Marketing", "value": 2 },
+        { "label": "Design", "value": 1 }
+      ],
+      "employee_by_gender": [
+        { "label": "Male", "value": 5 },
+        { "label": "Female", "value": 5 }
+      ],
+      "employee_by_status": [
+        { "label": "Active", "value": 8 },
+        { "label": "Inactive", "value": 1 },
+        { "label": "Resigned", "value": 1 }
+      ]
+    },
+    "recent_employees": [
+      {
+        "id": 8,
+        "full_name": "Nadia Putri Maharani",
+        "division": "Finance",
+        "position": "Accountant",
+        "join_date": "2023-01-02",
+        "employment_status": "Active",
+        "profile_photo": null
+      }
+    ]
+  },
+  "meta": null
+}
+
+────────────────────────────────────────────────────────────────
+14. UPLOAD — POST /api/upload/employees
+────────────────────────────────────────────────────────────────
+AKSES: Admin ONLY
+
+Headers:
+  Authorization: Bearer <access_token>
+  Content-Type: multipart/form-data
+
+Form Data:
+  file   File   required   Excel (.xlsx/.xls) atau CSV (.csv), max 10MB
+
+Kolom wajib dalam file: full_name, gender, email
+Kolom opsional: birth_date, phone_number, address, city, province,
+                postal_code, division, position, salary, join_date,
+                employment_status, education, marital_status,
+                emergency_contact, emergency_phone
+
+Response 200:
+{
+  "success": true,
+  "message": "Import completed. 9 employees inserted, 1 failed.",
+  "data": {
+    "total_rows": 10,
+    "valid_rows": 9,
+    "invalid_rows": 1,
+    "inserted": 9,
+    "failed": 0,
+    "invalid_details": [
+      {
+        "row": 5,
+        "data": { "full_name": "Test", "gender": "", "email": "" },
+        "errors": ["Row 5: email is required", "Row 5: gender is required"]
+      }
+    ],
+    "insert_errors": []
+  },
+  "meta": null
+}
+
+Template file tersedia di: src/docs/employee-import-template.xlsx
+
+────────────────────────────────────────────────────────────────
+15. UPLOAD — POST /api/upload/profile-photo
+────────────────────────────────────────────────────────────────
+AKSES: Admin + Employee
+
+Headers:
+  Authorization: Bearer <access_token>
+  Content-Type: multipart/form-data
+
+Form Data:
+  file          File      required   JPEG/PNG/WEBP, max 10MB
+  employee_id   integer   required   ID karyawan
+
+Response 200:
+{
+  "success": true,
+  "message": "Profile photo uploaded successfully.",
+  "data": {
+    "file_id": 1,
+    "file_path": "/uploads/photos/photo_uuid.jpg",
+    "original_name": "myphoto.jpg"
+  },
+  "meta": null
+}
+
+NOTE: Untuk tampilkan foto: http://localhost:3000/uploads/photos/photo_uuid.jpg
+
+────────────────────────────────────────────────────────────────
+16. EXPORT — GET /api/export/excel
+────────────────────────────────────────────────────────────────
+AKSES: Admin ONLY
+
+Headers:
+  Authorization: Bearer <access_token>
+
+Query Parameters (opsional, untuk filter sebelum export):
+  search            string
+  division          string
+  employment_status string   Active | Inactive | Resigned
+
+Response: File download .xlsx
+Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+Content-Disposition: attachment; filename="employees_2024-01-15.xlsx"
+
+Cara pakai di frontend (Axios):
+  const res = await axios.get('/api/export/excel', {
+    headers: { Authorization: `Bearer ${token}` },
+    responseType: 'blob'
+  });
+  const url = URL.createObjectURL(new Blob([res.data]));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'employees.xlsx';
+  a.click();
+
+────────────────────────────────────────────────────────────────
+17. EXPORT — GET /api/export/pdf
+────────────────────────────────────────────────────────────────
+AKSES: Admin ONLY
+
+Headers:
+  Authorization: Bearer <access_token>
+
+Query Parameters: sama dengan export excel
+
+Response: File download .pdf
+Content-Type: application/pdf
+Content-Disposition: attachment; filename="employees_2024-01-15.pdf"
+
+Cara pakai di frontend: sama seperti export excel tapi ganti .download jadi .pdf
+
+────────────────────────────────────────────────────────────────
+18. FILES — GET /api/files
+────────────────────────────────────────────────────────────────
+AKSES: Admin ONLY
+
+Headers:
+  Authorization: Bearer <access_token>
+
+Response 200:
+{
+  "success": true,
+  "message": "Files retrieved successfully.",
+  "data": [
+    {
+      "id": 1,
+      "original_name": "employees_import.xlsx",
+      "stored_name": "import_uuid.xlsx",
+      "file_path": "/path/to/file",
+      "file_size": 20480,
+      "uploaded_by": 1,
+      "uploaded_at": "2024-01-15T08:00:00.000Z",
+      "uploaded_by_username": "superadmin"
+    }
+  ],
+  "meta": null
+}
+
+────────────────────────────────────────────────────────────────
+19. FILES — DELETE /api/files/:id
+────────────────────────────────────────────────────────────────
+AKSES: Admin ONLY
+
+Headers:
+  Authorization: Bearer <access_token>
+
+Path Params:
+  id   integer   required   File record ID
+
+Response 200:
+{
+  "success": true,
+  "message": "File deleted successfully.",
+  "data": null,
+  "meta": null
+}
+
+Response 404: File record not found
+
+================================================================
+ERROR CODES REFERENCE
+================================================================
+
+200 → OK
+201 → Created
+400 → Bad Request (invalid data, expired token)
+401 → Unauthorized (no/invalid token)
+403 → Forbidden (role tidak cukup)
+404 → Not Found
+409 → Conflict (duplicate email/username)
+422 → Unprocessable Entity (validation failed)
+429 → Too Many Requests (rate limit)
+500 → Internal Server Error
+
+================================================================
+FRONTEND PAGES YANG HARUS DIBUAT
+================================================================
+
+LAYOUT:
+- Sidebar navigation (Admin/Employee berbeda menu)
+- Topbar (user avatar, nama, logout)
+- Responsive (mobile support)
+
+HALAMAN:
+
+1. /login
+   - Form: identifier (email/username), password
+   - Google reCAPTCHA v2 widget
+   - Tombol "Forgot Password"
+   - Handle error: invalid credentials, locked, rate limit
+
+2. /forgot-password
+   - Form: email
+   - Pesan sukses generic
+
+3. /reset-password?token=...
+   - Form: new_password, confirm_password
+   - Validasi token expired
+
+4. /dashboard (Admin only)
+   - Card summary: Total Employees, Active, Inactive, Resigned, Divisions, Users
+   - BarChart: Employees by Division (recharts)
+   - PieChart: Employees by Gender
+   - PieChart: Employees by Status
+   - Table: Recent Employees (5 terbaru)
+
+5. /employees (list)
+   - Table dengan kolom: No, Kode, Foto, Nama, Gender, Email, Divisi, Posisi, Status, Join Date, Aksi
+   - Search bar (debounced 500ms)
+   - Filter: Division dropdown, Status dropdown, Gender dropdown
+   - Pagination component
+   - Sort by column header click
+   - Tombol "Add Employee" (Admin only)
+   - Tombol Import Excel/CSV (Admin only)
+   - Tombol Export Excel + Export PDF (Admin only)
+   - Row action: View, Edit, Delete (Admin) | View only (Employee)
+
+6. /employees/[id]
+   - Detail lengkap karyawan
+   - Foto profil (dengan fallback avatar)
+   - Semua field dalam cards yang terorganisir
+   - Tombol Edit (Admin full / Employee limited fields)
+   - Tombol Back
+
+7. /employees/create (Admin only)
+   - Form lengkap dengan semua field
+   - Validasi frontend (Zod)
+   - Upload foto profil inline
+   - Salary format Rupiah (IDR)
+
+8. /employees/[id]/edit
+   - Form pre-filled data
+   - Admin: semua field
+   - Employee: hanya phone, address, city, province, postal_code,
+               emergency_contact, emergency_phone, marital_status
+
+9. /import (Admin only)
+   - Drag & drop zone (react-dropzone)
+   - Accept: .xlsx, .xls, .csv
+   - Progress indicator
+   - Import summary result (total, berhasil, gagal, detail error)
+   - Download template button → src/docs/employee-import-template.xlsx
+
+10. /profile
+    - Data user + data karyawan yang terhubung
+    - Ganti foto profil
+    - Update password (jika perlu)
+
+11. /files (Admin only)
+    - List semua file yang pernah diupload
+    - Kolom: nama file, ukuran, diupload oleh, tanggal
+    - Tombol delete
+
+================================================================
+STATE MANAGEMENT — ZUSTAND STORE
+================================================================
+
+authStore:
+  user: { id, username, email, role }
+  accessToken: string | null
+  isAuthenticated: boolean
+  login(token, user) → void
+  logout() → void
+  setToken(token) → void
+
+================================================================
+AXIOS INTERCEPTOR SETUP
+================================================================
+
+// lib/axios.ts
+import axios from 'axios'
+
+const api = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000',
+  withCredentials: true,  // penting untuk refresh_token cookie
+})
+
+// Request interceptor: tambah access token
+api.interceptors.request.use((config) => {
+  const token = useAuthStore.getState().accessToken
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
+
+// Response interceptor: auto refresh token jika 401
+api.interceptors.response.use(
+  (res) => res,
+  async (error) => {
+    const original = error.config
+    if (error.response?.status === 401 && !original._retry) {
+      original._retry = true
+      try {
+        const { data } = await axios.post('/api/auth/refresh-token',
+          {}, { withCredentials: true }
+        )
+        const newToken = data.data.access_token
+        useAuthStore.getState().setToken(newToken)
+        original.headers.Authorization = `Bearer ${newToken}`
+        return api(original)
+      } catch {
+        useAuthStore.getState().logout()
+        window.location.href = '/login'
+      }
+    }
+    return Promise.reject(error)
+  }
+)
+
+export default api
+
+================================================================
+ENV FRONTEND (.env.local)
+================================================================
+
+NEXT_PUBLIC_API_URL=http://localhost:3000
+NEXT_PUBLIC_RECAPTCHA_SITE_KEY=your_google_recaptcha_site_key
+
+================================================================
+ROLE-BASED ROUTE PROTECTION (middleware.ts)
+================================================================
+
+Admin routes (redirect ke /dashboard jika Employee):
+  /dashboard, /employees/create, /import, /files, /export
+
+Employee routes:
+  /employees (list & detail), /profile, /employees/[id]/edit (limited)
+
+================================================================
+FIELD ENUM VALUES REFERENCE
+================================================================
+
+gender:             Male | Female
+employment_status:  Active | Inactive | Resigned
+marital_status:     Single | Married
+role:               Admin | Employee
+status:             Active | Inactive
+
+================================================================
+PAGINATION COMPONENT PROPS
+================================================================
+
+<Pagination
+  currentPage={meta.currentPage}
+  totalPages={meta.totalPages}
+  totalData={meta.totalData}
+  hasNextPage={meta.hasNextPage}
+  hasPrevPage={meta.hasPrevPage}
+  onPageChange={(page) => setPage(page)}
+/>
+
+================================================================
+DEFAULT CREDENTIALS (UNTUK TESTING)
+================================================================
+
+Admin:
+  Email:    admin@nusacore.com
+  Password: Admin@1234
+
+Employee:
+  Email:    ahmad.rizki@ptdigitalnusantara.co.id
+  Password: Employee@1234
+
+================================================================
+CATATAN PENTING
+================================================================
+
+1. Salary format: tampilkan sebagai Rupiah
+   Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(salary)
+
+2. Date format: gunakan id-ID locale
+   new Date(date).toLocaleDateString('id-ID')
+
+3. Profile photo URL: gabungkan base URL + file_path
+   `${process.env.NEXT_PUBLIC_API_URL}${employee.profile_photo}`
+
+4. Jika profile_photo null: tampilkan avatar inisial nama
+
+5. Import template download:
+   GET http://localhost:3000/uploads langsung serve static file
+   atau buat endpoint di frontend yang serve template dari public/
+
+6. reCAPTCHA: gunakan react-google-recaptcha package
+   Site key dari NEXT_PUBLIC_RECAPTCHA_SITE_KEY
+   Token kirim ke backend dalam field recaptcha_token
+
+7. Untuk development tanpa reCAPTCHA aktif, cukup kirim:
+   "recaptcha_token": "dev-bypass"
+   Backend akan skip jika secret key tidak dikonfigurasi.
+
+================================================================
+END OF DOCUMENT
+================================================================

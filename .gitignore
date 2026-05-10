@@ -1,0 +1,42 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+src/logs/*.log
+logs/
+
+# Uploads (keep directory, ignore files)
+src/uploads/photos/*
+src/uploads/imports/*
+!src/uploads/photos/.gitkeep
+!src/uploads/imports/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build
+dist/
+build/
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Misc
+*.pem
+*.key
