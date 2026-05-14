@@ -44,7 +44,7 @@ async function sendPasswordResetEmail(toEmail, userName, resetToken) {
           <h2>Reset Password Request</h2>
           <p>Hi <strong>${userName}</strong>,</p>
           <p>You have requested to reset your password. Click the button below to proceed:</p>
-          <a href="${resetUrl}" class="btn">Reset My Password</a>
+          <a href="${resetUrl}" class="btn" style="color: #ffffff;">Reset My Password</a>
           <p>Or copy and paste the following link to your browser:</p>
           <div class="token-box">${resetUrl}</div>
           <p class="warning">⚠️ This link will expire in <strong>1 hour</strong>. If you did not request a password reset, please ignore this email.</p>

@@ -83,7 +83,17 @@ app.use(sessionMiddleware);
 // ============================================================
 const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+const docsDir = path.join(__dirname, 'docs');
+if (!fs.existsSync(docsDir)) fs.mkdirSync(docsDir, { recursive: true });
+
 app.use('/uploads', express.static(uploadDir));
+app.use('/docs', express.static(docsDir));
+
+// Fallback for frontend expecting template in /uploads
+app.get('/uploads/employee-import-template.xlsx', (req, res) => {
+  res.sendFile(path.join(docsDir, 'employee-import-template.xlsx'));
+});
 
 // ============================================================
 // API DOCUMENTATION (Swagger)

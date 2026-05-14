@@ -182,9 +182,8 @@ const AuthService = {
 
     const token = generateSecureToken(32);
     const expiredAt = new Date(Date.now() + RESET_EXPIRES_MS);
-    const expiredAtStr = expiredAt.toISOString().slice(0, 19).replace('T', ' ');
 
-    await AuthRepository.createPasswordReset(user.id, token, expiredAtStr);
+    await AuthRepository.createPasswordReset(user.id, token, expiredAt);
 
     // Send email (non-blocking in production)
     await sendPasswordResetEmail(user.email, user.username, token);
