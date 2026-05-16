@@ -144,10 +144,10 @@ async function startServer() {
       console.log('╔════════════════════════════════════════════╗');
       console.log('║     NusaCore HRIS API - PT Digital Nusantara     ║');
       console.log('╚════════════════════════════════════════════╝');
-      console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`📡 Environment: ${process.env.APP_ENV || 'development'}`);
-      console.log(`📚 API Docs: http://localhost:${PORT}/api-docs`);
-      console.log(`🏥 Health: http://localhost:${PORT}/health`);
+      console.log(`- Server running on port ${PORT}`);
+      console.log(`- Environment: ${process.env.APP_ENV || 'development'}`);
+      console.log(`- API Docs: http://localhost:${PORT}/api-docs`);
+      console.log(`- Health: http://localhost:${PORT}/health`);
     });
 
     // Start cron jobs

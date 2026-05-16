@@ -7,8 +7,8 @@ const ApiResponse = require('../utils/ApiResponse');
  * General API rate limiter
  */
 const apiLimiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 menit
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // 100 kali percobaan
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
@@ -20,8 +20,8 @@ const apiLimiter = rateLimit({
  * Strict rate limiter for login endpoint
  */
 const loginLimiter = rateLimit({
-  windowMs: parseInt(process.env.LOGIN_RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-  max: parseInt(process.env.LOGIN_RATE_LIMIT_MAX) || 5,
+  windowMs: parseInt(process.env.LOGIN_RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 menit
+  max: parseInt(process.env.LOGIN_RATE_LIMIT_MAX) || 5, // 5 kali percobaan login
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => req.ip,
